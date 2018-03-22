@@ -1,0 +1,143 @@
+##############################################################################
+## Provision vault
+## This role executes much of the needed functionality to provision an
+## application using an Ansible Playbook Bundle.  Included in the comments
+## below are some sample resources for getting started deploying an application
+## to OpenShift.
+##############################################################################
+
+- name: add a persistent volume claim
+  k8s_v1_persistent_volume_claim:
+    name: vault-file-backend
+    namespace: '{{ namespace }}'
+    access_modes:
+      - ReadWriteOnce
+    resources_requests:
+      storage: 1Gi
+
+
+- name: create config map
+  k8s_v1_config_map:
+    name: vault-config
+    namespace: '{{ namespace }}'
+    data:
+      vault-config: " {{ lookup('file', '/opt/vault-config') }}"
+
+
+##############################################################################
+## An OpenShift Origin deployment configuration provides a replication
+## controller, spins up pods, and also provides the ability to transition from
+## one deployment of an image to a new one.
+## https://docs.openshift.org/latest/architecture/core_concepts/deployments.html#deployments-and-deployment-configurations
+##############################################################################
+- name: create deployment config
+  openshift_v1_deployment_config:
+    name: vault
+    namespace: '{{ namespace }}'
+    labels:
+      app: vault
+    replicas: 1
+    selector:
+      app: vault
+      service: vault
+    spec_template_metadata_labels:
+      app: vault
+      service: vault
+    containers:
+    - image: vault:latest
+      imagePullPolicy: IfNotPresent
+      name: vault
+      ports:
+      - containerPort: 8200
+        name: vaultport
+        protocol: TCP
+      args:
+      - server
+      - -log-level=debug
+      env:
+      - name: SKIP_SETCAP
+        value: 'true'
+      - name: VAULT_LOCAL_CONFIG
+        valueFrom:
+          configMapKeyRef:
+            name: vault-config
+            key: vault-config
+      volumeMounts:
+      - name: vault-file-backend
+        mountPath: /vault/file
+        readOnly: false
+      - name: vault-cert
+        mountPath: /var/run/secrets/kubernetes.io/certs
+      livenessProbe:
+        httpGet:
+          path: 'v1/sys/health?standbyok=true&standbycode=200&sealedcode=200&uninitcode=200'
+          port: 8200
+          scheme: HTTPS
+      readinessProbe:
+        httpGet:
+          path: 'v1/sys/health?standbyok=true&standbycode=200&sealedcode=200&uninitcode=200'
+          port: 8200
+          scheme: HTTPS
+    volumes:
+    - name: vault-file-backend
+      persistentVolumeClaim:
+        claimName: vault-file-backend
+    - name: vault-cert
+      secret:
+        secretName: vault-cert
+
+##############################################################################
+## A Kubernetes service serves as an internal load balancer.  It identifies a
+## set of replicated pods in order to proxy the connections it receives to them.
+## https://docs.openshift.org/latest/architecture/core_concepts/pods_and_services.html#services
+##############################################################################
+
+- name: create vault service
+  k8s_v1_service:
+    name: vault
+    namespace: '{{ namespace }}'
+    annotations:
+      service.alpha.openshift.io/serving-cert-secret-name: vault-cert
+    labels:
+      app: vault
+    selector:
+      app: vault
+    ports:
+      - name: vault
+        port: 8200
+
+##############################################################################
+## An OpenShift Origin route exposes a service at a host name, so that external
+## clients can reach it by name. Each route consists of a name, a service
+## selector, and an optional security configuration.
+## https://docs.openshift.org/latest/architecture/core_concepts/routes.html
+##############################################################################
+#- name: create vault route
+#  openshift_v1_route:
+#    name: vault
+#    namespace: '{{ namespace }}'
+#    labels:
+#      app: vault
+#      service: vault
+#    to_name: vault
+#    spec_port_target_port: web
+
+
+
+##############################################################################
+## Bindable services must make credentials available to the Ansible Service
+## Broker during the provision stage.  They will later be made available to
+## applications after a binding is created.
+## https://github.com/kubernetes-incubator/service-catalog/blob/master/docs/design.md#using-a-service-instance
+##############################################################################
+
+- name: initialize vault
+  shell: "sleep 10 && vault-entry.sh {{ namespace }}"
+
+
+- name: encode bind credentials
+  asb_encode_binding:
+    fields:
+      ROOT_TOKEN: "{{ lookup('file', '/tmp/vault_token') }}"
+      UNSEAL_KEY: "{{ lookup('file', '/tmp/vault_unseal_key') }}"
+

@@ -1,0 +1,14 @@
+- name: issue cert with vault
+  shell: "VAULT_TOKEN={{ _apb_provision_creds.ROOT_TOKEN }} issue-cert.sh {{ namespace }}"
+  register: issue
+
+- debug: var=issue.stdout_lines
+
+- debug: var=issue.stderr
+
+- name: encode bind credentials
+  asb_encode_binding:
+    fields:
+      CERTIFICATE: "{{ lookup('file', '/tmp/cert.pem') }}"
+      PRIVATEKEY: "{{ lookup('file', '/tmp/cert.key') }}"
+      CA: "{{ lookup('file', '/tmp/ca.pem') }}"
