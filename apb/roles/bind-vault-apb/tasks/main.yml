@@ -1,5 +1,5 @@
 - name: issue cert with vault
-  shell: "VAULT_TOKEN={{ _apb_provision_creds.ROOT_TOKEN }} issue-cert.sh {{ namespace }}"
+  shell: "VAULT_TOKEN={{ _apb_provision_creds.ROOT_TOKEN }} issue-cert.sh {{ namespace }} {{ common_name }}"
   register: issue
 
 - debug: var=issue.stdout_lines
