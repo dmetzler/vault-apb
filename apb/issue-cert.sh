@@ -7,8 +7,9 @@ echo TESTING
 TARGET_NAMESPACE=$1
 COMMON_NAME=$2
 
-export VAULT_ADDR=https://vault.$TARGET_NAMESPACE:8200/
-export VAULT_SKIP_VERIFY=true
+export VAULT_ADDR=https://vault.$TARGET_NAMESPACE.svc:8200/
+#export VAULT_SKIP_VERIFY=true
+export VAULT_CACERT=/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
 export VAULT_TOKEN=$VAULT_TOKEN
 JSON=$(vault write -format=json pki/issue/service common_name="$COMMON_NAME" ttl=72h)
 

@@ -16,8 +16,8 @@ set -x
 #TARGET_NAMESPACE=$(echo "$JSON" | jq -r .namespace)
 TARGET_NAMESPACE=$1
 
-export VAULT_ADDR=https://vault.$TARGET_NAMESPACE:8200/
-export VAULT_SKIP_VERIFY=true
+export VAULT_ADDR=https://vault.$TARGET_NAMESPACE.svc:8200/
+export VAULT_CACERT=/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
 
 INIT_DATA=$(vault init -format=json -key-shares=1 -key-threshold=1)
 #echo $INIT_DATA
