@@ -12,55 +12,6 @@ aW5nCiAgICAgICAgZGlzcGxheV90eXBlOiB0ZXh0CiAgICAgICAgcmVxdWlyZWQ6IFRydWUKICAg\
 IAo="
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 RUN curl https://releases.hashicorp.com/vault/0.9.6/vault_0.9.6_linux_amd64.zip | gunzip > /usr/bin/vault && chmod 755 /usr/bin/vault
 RUN yum -y install jq && yum clean all
 COPY vault-entry.sh /usr/bin/vault-entry.sh
@@ -71,4 +22,3 @@ COPY vault-config /opt/vault-config
 RUN chmod -R g=u /opt/{ansible,apb,vault-config}
 USER apb
 
-#ENTRYPOINT ["vault-entry.sh"]
